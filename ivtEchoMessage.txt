@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><tns0:Envelope xmlns:tns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:impl0="http://demo.sr.eis.ibm.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <tns0:Header/>
+  <tns0:Body>
+    <impl0:updateCustomerInfo>
+      <customer>
+        <firstName>Tyrion</firstName>
+        <lastName>Lannister</lastName>
+        <addresses>
+          <AddressInfo>
+            <city>Santa Fe</city>
+            <country>USA</country>
+            <stateOrProvince>New Mexico</stateOrProvince>
+            <streetAddress1>88 Casterly Rock Av</streetAddress1>
+            <zipcode>87010</zipcode>
+            <phone>+1 411 666 666</phone>
+          </AddressInfo>
+        </addresses>
+      </customer>
+    </impl0:updateCustomerInfo>
+  </tns0:Body>
+</tns0:Envelope>

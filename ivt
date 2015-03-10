@@ -1,0 +1,17 @@
+ #!/bin/bash
+ source ../lib/commonLib.sh
+
+# - 
+_MODE=${1:-"echo"}
+
+# -
+_URL='http://127.0.0.1:7800/echo'
+_ECHOMESG='{"text": "Hello, world...!"}'
+_DATFILE=./ivtEchoMessage.txt
+
+# -
+if [[ -f /usr/bin/xmllint ]]; then
+ 	eCmd ${_MODE} "curl --header \"Content-Type: text/xml;charset=UTF-8\" --header \"SOAPAction:updateCustomerInfo\" --data @${_DATFILE} ${_URL} | xmllint -format - "
+ else
+ 	eCmd ${_MODE} "echo ${_ECHOMESG} | curl -d @- ${_URL}"
+ fi
