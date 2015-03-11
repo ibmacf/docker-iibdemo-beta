@@ -1,6 +1,6 @@
 # Docker Image related
-name = ibmimages/iibbeta
-version = b710
+name = iibdemo/iibdemo
+version = 10.0.710.0
 
 # Container related
 cname = tyrions_iibbeta
@@ -10,29 +10,32 @@ http = 7800
 soap = 7080
 debug = 49001
  
-.PHONY: build spinup start stop clean console
+.PHONY: build spinup start stop clean console logs admin ps
 
 build:
-	time sudo docker build --rm --force-rm=true -t $(name):$(version) .
+	sudo docker build --rm --force-rm=true -t $(name):$(version) .
+
+configure: spinup 
+	sudo docker exec -it $(cname) /sbin/cinitd --command=/root/configure/echoService/configure.sh
  
 spinup:
-	sudo docker run -d -e IIBNODE=TESTNODE \
-						-e BARFILE=/tmp/echoService.bar \
-						-p $(webgui):$(webgui) \
-						-p $(mqtt):$(mqtt) \
-						-p $(http):$(http) \
-						-p $(soap):$(soap) \
-						-p $(debug):$(debug) \
-						--name=$(cname) \
-						$(name):$(version) 
+	sudo docker run -d \
+				-p $(webgui):$(webgui) \
+				-p $(mqtt):$(mqtt) \
+				-p $(http):$(http) \
+				-p $(soap):$(soap) \
+				-p $(debug):$(debug) \
+				--name=$(cname) \
+				$(name):$(version) 
  
 start:
 	sudo docker start $(cname)
+
 runivt:
 	./ivt run
 
-top:
-	sudo docker top $(cname)
+ps:
+	sudo docker exec -i $(cname) /sbin/cinitd --command="ps -ef"
 
 showports:
 	sudo docker port $(cname)
@@ -48,3 +51,9 @@ cleanall: clean
  
 console:
 	sudo docker exec -it $(cname) /bin/bash
+
+admin:
+	xdg-open http://127.0.0.1:4414/
+
+logs:
+	sudo docker logs $(cname)

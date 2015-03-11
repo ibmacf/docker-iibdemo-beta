@@ -1,0 +1,68 @@
+#!/bin/bash
+# -*- mode: sh -*-
+# © Copyright IBM Corporation 2015.
+#
+# All rights reserved. This program and the accompanying materials
+# are made available under the terms of the Eclipse Public License v1.0
+# which accompanies this distribution, and is available at
+# http://www.eclipse.org/legal/epl-v10.html
+log()
+{
+    if [[ -z "$*" ]]; then
+        echo
+    else
+        _TIMESTAMP=`date`
+        echo $_TIMESTAMP $*
+    fi
+}
+
+dieWithMessage()
+{
+    if [[ ! -z "$*" ]]; then
+        log $*
+        exit 1
+    fi
+}
+
+eCmd()
+{
+    _MODE=$1
+    _ECMD=$2
+
+    if [[ -z "${_ECMD}" ]]; then
+        dieWithMessage "E Aborting @ eCmd, as no command to execute [${_ECMD}]"
+    fi
+
+    log "I eCmd $_MODE ${_ECMD}"    
+    if [[ "${_MODE}" = "run" ]]; then
+            eval ${_ECMD}
+            if [[ ! "$?" = "0" ]]; then
+                dieWithMessage "E Command execution FAILED ${_ECMD}"
+            fi
+    fi
+    _ECMD=""
+}
+
+# -
+set -e
+
+# - Properties, not verty sofisticated presently
+IIBNODE=TESTNODE
+BARFILE=/root/configure/echoService/barfiles/echoService.bar
+EGGROUP=server01
+
+
+# - Create application environment for the EchoService
+eCmd run "source /opt/ibm/iib-10.0.710.0/server/bin/mqsiprofile"
+
+eCmd run "mqsicreatebroker $IIBNODE"
+
+eCmd run "mqsistart $IIBNODE"
+
+eCmd run "mqsicreateexecutiongroup $IIBNODE -e ${EGGROUP}"
+
+eCmd run "mqsideploy $IIBNODE -e ${EGGROUP} -a $BARFILE"
+
+eCmd run "cp /root/configure/echoService/iib_testnode /etc/cinit.d"
+
+eCmd run "rm -f /etc/cinit.d/waiting_to_configure"
