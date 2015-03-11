@@ -11,8 +11,8 @@
 export DEBIAN_FRONTEND=noninteractive
 IIB_VERSION=iib-10.0.710.0
 HOST="192.168.187.1:8081"
-# IIB_URL=http://http://ec2-52-64-15-230.ap-southeast-2.compute.amazonaws.com/${IIB_VERSION}.tar.gz
-IIB_URL=http://${HOST}/${IIB_VERSION}.tar.gz
+IIB_URL=http://ec2-52-64-15-230.ap-southeast-2.compute.amazonaws.com/${IIB_VERSION}.tar.gz
+#IIB_URL=http://${HOST}/${IIB_VERSION}.tar.gz
 BUILDDIR=/tmp/build
  
 #:: Main
