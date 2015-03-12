@@ -7,6 +7,6 @@ source /opt/ibm/iib-10.0.710.0/server/bin/mqsiprofile
 case ${OPER} in
 	"start" ) mqsistart TESTNODE
 	;;
-	"stop" ) mqsistop TESNODE
+	"stop" ) mqsistop TESTNODE
 	;;
 esac

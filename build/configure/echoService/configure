@@ -51,6 +51,9 @@ IIBNODE=TESTNODE
 BARFILE=/root/configure/echoService/barfiles/echoService.bar
 EGGROUP=server01
 
+# REMOVE ME IF THE GA VERSION does this on licence accept
+# we need mosquito user
+eCmd run "useradd -Nmg mqbrkrs mosquitto"
 
 # - Create application environment for the EchoService
 eCmd run "source /opt/ibm/iib-10.0.710.0/server/bin/mqsiprofile"
@@ -65,4 +68,7 @@ eCmd run "mqsideploy $IIBNODE -e ${EGGROUP} -a $BARFILE"
 
 eCmd run "cp /root/configure/echoService/iib_testnode /etc/cinit.d"
 
+
+# remove and kill waiting_to_configure sentinel
 eCmd run "rm -f /etc/cinit.d/waiting_to_configure"
+eCmd run "kill `ps -ef| grep waiting_to | grep -v grep | tr -s [:space:] | cut -f2 -d ' '`"

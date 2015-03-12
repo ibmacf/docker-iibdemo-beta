@@ -3,30 +3,31 @@ name = iibdemo/iibdemo
 version = 10.0.710.0
 
 # Container related
-cname = tyrions_iibbeta
+cname = grumpy_koala
 webgui = 4414
 mqtt = 11883
 http = 7800
 soap = 7080
 debug = 49001
  
-.PHONY: build spinup start stop clean console logs admin ps
+.PHONY: build configure spinup start runivt ps showports stop clean cleanall console logs admin
 
 build:
 	sudo docker build --rm --force-rm=true -t $(name):$(version) .
 
 configure: spinup 
-	sudo docker exec -it $(cname) /sbin/cinitd --command=/root/configure/echoService/configure.sh
- 
+	sudo docker exec -it $(cname) /sbin/cinitd --command=/root/configure/echoService/configure
+
 spinup:
 	sudo docker run -d \
+				-v /dev/log:/dev/log \
 				-p $(webgui):$(webgui) \
 				-p $(mqtt):$(mqtt) \
 				-p $(http):$(http) \
 				-p $(soap):$(soap) \
 				-p $(debug):$(debug) \
 				--name=$(cname) \
-				$(name):$(version) 
+				$(name):$(version)
  
 start:
 	sudo docker start $(cname)
