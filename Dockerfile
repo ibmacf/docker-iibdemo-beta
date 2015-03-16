@@ -9,12 +9,31 @@ FROM ubuntu:14.04
 
 MAINTAINER Ashley Fernandez <ashley.fernandez@au.ibm.com>
 
-COPY build/ /tmp/build
-RUN /tmp/build/bin/build
+# - environment variables
+ENV IIBADMIN=iibadm \
+	IIBVERSION=10.0.710.0 \
+	IIBBUILDDIR=/tmp/build \
+	IIBUTILITYSOFTWARE=curl\ tar\ rsyslog
 
-# webadmin(4414) soap(7800) debug(49001) http(7080) mqtt(11883)"
-EXPOSE 4414 11883 7080 7800 49001
+# - more env
+ENV IIBIMAGENAME=iib-${IIBVERSION}.tar.gz \
+	IIBCONFIGURELOC=/home/${IIBADMIN}
 
+ENV IIBMEDIAURL=http://192.168.187.1:8081/${IIBIMAGENAME}
+#ENV IIBMEDIAURL=http://ec2-52-64-28-224.ap-southeast-2.compute.amazonaws.com/${IIBIMAGENAME}
+
+# - build script folder
+COPY build/ ${IIBBUILDDIR}
+RUN ${IIBBUILDDIR}/bin/build
+
+# - webadmin(4414) soap(7800) debug(49001) http(7080) mqtt(11883)"
+EXPOSE  4414 \
+		7080 \
+		7800 \
+		49001 \
+		11883
+
+# - Configuration space can be mapped elsewhere
 VOLUME /var/mqsi
 
-ENTRYPOINT ["/sbin/cinitd"]
+ENTRYPOINT ["/sbin/cinitd", "--trace"]

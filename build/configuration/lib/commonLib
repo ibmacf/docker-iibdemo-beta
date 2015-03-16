@@ -1,0 +1,320 @@
+#!/bin/bash
+# ------------------------------------------------------------------------- 
+#	Creator		: Ashley Fernandez <ashley.fernandez@au1.ib.com>
+#	Date		: 18 April 2013
+#	Description	: World Domination through scripting
+#
+#	Version		: 1.0
+#
+#	Problems 	: 
+#
+#	TODO 		: 
+# -------------------------------------------------------------------------
+
+function dieWithMessage()
+{
+	if [[ ! -z "$*" ]]; then
+		log $*
+		exit 1
+	fi
+}
+
+function eCmd()
+{
+	_MODE=$1
+	_ECMD=$2
+
+	if [[ -z "${_ECMD}" ]]; then
+		dieWithMessage "E Aborting @ eCmd, as no command to execute [${_ECMD}]"
+	fi
+
+	log "I eCmd $_MODE ${_ECMD}"	
+	if [[ "${_MODE}" = "run" ]]; then
+			eval ${_ECMD}
+			if [[ ! "$?" = "0" ]]; then
+				dieWithMessage "E Command execution FAILED ${_ECMD}"
+			fi
+	fi
+	_ECMD=""
+}
+
+function setTimeZoneForCity()
+{
+ 	_MODE=$1
+ 	_LOC=$2
+ 	_CITY=$3
+ 	_FILE=$(find ${_LOC} -name ${_CITY} -print | grep -v posix | grep -v right)
+
+	if [[ ! -z "${_FILE}" ]]; then
+		log "Setting time zone for ${_CITY}"
+		eCmd ${_MODE} "ls -sf ${_FILE} /etc/localtime"
+	else
+		log "E time Zone File for ${_CITY} not found..."
+	fi
+}
+
+function continueOrQuit()
+{
+	_MODE=$1
+	_MESSAGE=$2
+
+	if [[ "${_MODE}" = "run" ]]; then
+		read -p "${_MESSAGE}" _RESPONSE
+		case ${_RESPONSE} in
+			"q" | "Q" )
+			exit 0
+			;;
+			*)
+			;;
+		esac
+	else
+		log "I read -p "${_MESSAGE}" '_RESPONSE'" 
+	fi
+
+}
+
+function getUUID()
+{
+   _UUID=$(cat /proc/sys/kernel/random/uuid | sed 's/-//g')
+   echo ${_UUID}
+}
+
+function log()
+{
+	if [[ -z "$*" ]]; then
+		echo
+	else
+		_TIMESTAMP=`date`
+		echo $_TIMESTAMP $*
+	fi
+}
+
+function dieWithMessage()
+{
+	if [[ ! -z "$*" ]]; then
+		log $*
+		exit 1
+	fi
+}
+
+function killPID()
+{
+	_MODE=$1
+	_PID=$2
+	# -- Kill the supplied process
+	if [[ ${_PID} -gt 0 ]]; then
+		eCmd ${_MODE} "sudo kill -9 ${_PID}"
+	fi
+}
+
+function dieIfNULL()
+{
+	_VAR=$1
+	_VARNAME=$2
+
+	if [[ -z "${_VAR}" ]]; then
+		dieWithMessage "E mandatory [$_VARNAME] is null"
+	fi
+}
+
+
+function sanityCheckProperties()
+{
+	log "I >>sanitycheckProperties $*"
+
+	_MODE=$1
+	_FILENAME=$2
+
+	checkFileExist $_MODE $_FILENAME
+	while read _LINE 
+	do
+		if [[ ! -z "${_LINE}" ]]; then
+			_COMMENT=$(echo $_LINE | cut -c1)
+			if [[ $_COMMENT != "#" ]]; then
+				_MANDOPTION=$(echo $_LINE | cut -c1,2)
+				if [[ "$_MANDOPTION" = "$acf_MANDATORYFIELDKEY" ]]; then
+					_VALUE=$(echo $_LINE | cut -d "=" -f2)
+					if [[ -z ${_VALUE} ]]; then
+						dieWithMessage "E Empty mandatory field : [$_LINE]"
+					fi
+				fi
+			fi
+		fi
+	done < $_FILENAME
+
+	log "I <<sanitycheckProperties"
+}
+
+function intialiseProperties()
+{
+	log "I >>intialiseProperties $*"
+	_MODE=$1
+	_PROPFILE=$2
+	log "I Using properties file [$_PROPFILE]"
+
+	checkFileExist $_MODE $_PROPFILE
+	sanityCheckProperties $_MODE $_PROPFILE
+	. $_PROPFILE
+	log "I <<intialiseProperties"
+}
+
+
+function checkDirectoryDoesNotExist()
+{
+	_MODE=$1
+	_DIR=$2
+	log "I Checking for directory existence [$_DIR]"
+	if ! test -d "$_DIR"
+	then
+		dieWithMessage "E [$1] directory does not exist"
+	fi
+}
+
+function checkDirectoryExists()
+{
+	_MODE=$1
+	_DIRT=$2
+	log "I Checking for directory existence [${_DIRT}]"
+	if [[ ! -d  "${_DIRT}" ]]; then
+		if [[ "${_MODE}" = "run" ]]; then
+			dieWithMessage "E [${_DIRT}] directory exists, bailing..."
+		else
+			log "ERROR [${_DIRT}] directory exists, would have bailed if not in echo mode..."			
+		fi
+	fi
+}
+
+function checkFileExist()
+{
+	_MODE=$1
+	_FILE=$2
+	log "I Checking for file existence [${_FILE}]"
+	if [[ ! -s ${_FILE} ]]; then
+		if [[ "${_MODE}" = "run" ]]; then
+			dieWithMessage "E [${_FILE}] file does not exist OR empty"
+		else
+			log "ERROR [${_FILE}] file does not exist OR empty, would have bailed if not in echo mode...."	
+		fi
+	fi
+}
+
+
+
+function createDirectory()
+{
+	_MODE=$1
+	_DIR=$2
+
+	if [[ ! -d ${_DIR} ]]; then
+		log "I Creating $_DIR ..."
+		eCmd $_MODE "mkdir -p $_DIR"
+	else
+		log "I Directory ${_DIR} already exists nothing to do..."
+	fi
+}
+
+function removeFile()
+{
+	log "removeFile>>"
+	_MODE=$1
+	_FILETONIX=$2
+	eCmd $_MODE "rm -f $_FILETONIX"
+	log "removeFile<<"
+}
+
+function runmqscScriptOnQMGR()
+{
+	log "I >>runmqscScriptOnQMGR $*"
+	_MODE=$1
+	_QMGR=$2
+	_SCRIPTNAME=$3
+
+	checkFileExist $_MODE $_SCRIPTNAME
+	_EXISTS=`dspmq | grep $_QMGR |grep Running | wc -l`
+
+	if [[ ${_EXISTS} -eq 0 ]]; then
+		if [[ "${_MODE}" = "run" ]]; then
+			dieWithMessage "E Queue Manager $_QMGR not running, bailing..."
+		else
+			log "E Queue Manager $_QMGR not running, would have bailed if not in echo mode..."
+		fi
+	fi
+	log "I Executing script $_SCRIPTNAME on $_SCRIPTNAME" 
+	eCmd $_MODE "runmqsc $_QMGR < $_SCRIPTNAME"
+
+	log "I <<runmqscScriptOnQMGR"
+}
+
+
+function updateBarFileWithOverrides()
+{
+	log "I >>updateBarFileWithOverrides $*"
+
+	_MODE=$1
+	_SVCBAR=$2
+	_SVCBARPROP=$3
+
+	# updateBarFileWithOverrides $_MODE $m_SVCBAR $m_SVCBARPROP $_UPDATED_BARF
+	log "I Updating $_SVCBAR using $_SVCBARPROP creating $_SVCBARPROP for deployment"
+	checkFileExist $_MODE $_SVCBAR
+	checkFileExist $_MODE $_SVCBARPROP
+	eCmd $_MODE "mqsiapplybaroverride -b $_SVCBAR -p $_SVCBARPROP 2>/dev/null"
+
+	log "I >>updateBarFileWithOverrides"
+}
+
+function deployBarFileToBrokerWithEG()
+{
+	log "I >>deployBarFileToBrokerWithEG $*"
+
+	_MODE=$1
+	_BROKER=$2
+	_EGRP=$3
+	_UPDATED_BARF=$4
+
+	log "I Updating $_SVCBAR using $_SVCBARPROP creating $_UPDATED_BARF for deployment"
+	checkFileExist $_MODE $_UPDATED_BARF
+	eCmd $_MODE "mqsideploy $_BROKER -e $_EGRP -a $_UPDATED_BARF"
+
+	log "I >>deployBarFileToBrokerWithEG"
+}
+
+function getUserInput()
+{
+	_PROMPT=${1:-"Some text please : "}
+	_PASSWORD=""
+
+	until [ ! -z "$_PASSWORD" ];
+	do
+		read -p "$_PROMPT" _PASSWORD
+	done
+	echo  "$_PASSWORD"
+	unset _PASSWORD
+}
+
+
+function iibnodestate()
+{
+	_MODE=$1
+	_IIBNODE=$2
+
+    _RUNNINGBIP=BIP1325I
+    _STOPPEDBIP=BIP1326I
+
+    _LISTLINE=`mqsilist | grep "Integration node" | grep ${_IIBNODE} |cut -f1,4 -d ' ' | tr -d "'" |tr -d ":"`
+    _BIPMSG=$(echo $_LISTLINE | cut -f1 -d " ")
+    _NODENAME=$(echo $_LISTLINE | cut -f2 -d " ")
+
+    case "$_NODENAME" in
+        "${_IIBNODE}" )
+            if [ "$_BIPMSG" = "$_RUNNINGBIP" ]; then
+                echo running
+            else
+                echo stopped
+            fi
+            ;;
+        *)
+            echo unknown
+            ;;
+        esac
+}

@@ -7,46 +7,97 @@
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
 
-# Globals
-export DEBIAN_FRONTEND=noninteractive
-IIB_VERSION=iib-10.0.710.0
-HOST="192.168.187.1:8081"
-#IIB_URL=http://ec2-52-64-28-224.ap-southeast-2.compute.amazonaws.com/${IIB_VERSION}.tar.gz
-IIB_URL=http://${HOST}/${IIB_VERSION}.tar.gz
-BUILDDIR=/tmp/build
- 
+# - 
+_IIBINSTALLLOC=/opt/ibm
+
+if [[ -f ${IIBBUILDDIR}/configuration/lib/commonLib ]] ; then
+	source ${IIBBUILDDIR}/configuration/lib/commonLib
+else
+	echo "ERROR : Can't source [${IIBBUILDDIR}/configure/lib/commonLib]"
+fi
+
+addIIBGroups()
+{
+	log "I >> script $0 [addIIBGroups]"	
+	# -
+	eCmd run "groupadd -g 1667 mqbrkrs"
+	eCmd run "useradd -Nmg mqbrkrs ${IIBADMIN}"
+	log "I << script $0 [addIIBGroups]"	
+}
+
+updateOSandInstallUtilitySoftware()
+{
+	log "I >> script $0 [updateOSandInstallUtilitySoftware]"	
+	# -
+	eCmd run "apt-get -q -y update > /dev/null"
+	eCmd run "apt-get -q -y install ${IIBUTILITYSOFTWARE}  > /dev/null"
+	log "I << script $0 updateOSandInstallUtilitySoftware"	
+
+}
+
+updateAdminUserProfile()
+{
+	log "I >> script $0 [updateAdminUserProfile]"
+	eCmd run "echo ' ' >> /home/${IIBADMIN}/.bash_profile"
+	eCmd run "echo \"source ${_IIBINSTALLLOC}/iib-${IIBVERSION}/server/bin/mqsiprofile\" >> /home/${IIBADMIN}/.bash_profile"
+	log "I << script $0 [updateAdminUserProfile]"
+}
+
+copyConfigurationToUserHome()
+{
+	log "I >> script $0 [copyConfigurationToUserHome]"	
+	# -
+	log "I >> copyConfigurationToUserHome"
+	eCmd run "mkdir -p ${_IIBINSTALLLOC}"
+	eCmd run "mv ${IIBBUILDDIR}/configuration ${IIBCONFIGURELOC}"
+	updateAdminUserProfile
+	eCmd run "chown -R ${IIBADMIN}:mqbrkrs ${IIBCONFIGURELOC}"
+	log "I << script $0 [copyConfigurationToUserHome]"	
+
+}
+
+downloadInstallIIBAcceptLicence()
+{
+	log "I >> script $0 [downloadInstallIIBAcceptLicence]"
+	eCmd run "cd ${IIBBUILDDIR}/software"
+	eCmd run "curl -LO ${IIBMEDIAURL}" 
+	eCmd run "tar --exclude="tools" -xf ./${IIBIMAGENAME} --directory ${_IIBINSTALLLOC}/"
+	#-
+	eCmd run "${_IIBINSTALLLOC}/iib-${IIBVERSION}/iib make registry global accept license silently"
+	log "I << script $0 downloadInstallIIBAcceptLicence"
+}
+
+configureCINITD()
+{
+	log "I >>  script $0 [configureCINITD]"
+	eCmd run "mkdir -p /etc/cinit.d"
+	eCmd run "cp ${IIBBUILDDIR}/software/cinitd /sbin/"
+	eCmd run "ln -s ${IIBCONFIGURELOC}/configuration/configure_iib /etc/cinit.d/configure_iib"
+	log "I <<  script $0 [configureCINITD]"
+}
+
+cleanUPImageAfterBuild()
+{
+	log "I >>  script $0 [cleanUPImageAfterBuild]"
+	eCmd run "rm -rf ${IIBBUILDDIR}"
+	log "I <<  script $0 [cleanUPImageAfterBuild]"
+}
+
 #:: Main
-echo "${IIB_VERSION}" > /etc/debian_chroot
+log "I >> $0 [Begin]"
+echo "${IIBVERSION}" > /etc/debian_chroot
+export DEBIAN_FRONTEND=noninteractive
 
-#-
-echo "[This will take a moment] apt-get -q -y update > /dev/null"
-apt-get -q -y update > /dev/null
+addIIBGroups
 
-echo "[This will take a moment] apt-get -q -y install curl tar rsyslog > /dev/null"
-apt-get -q -y install curl tar rsyslog > /dev/null
+updateOSandInstallUtilitySoftware
 
-# -
-mkdir -p /opt/ibm
-mv --verbose ${BUILDDIR}/configure /root/
+copyConfigurationToUserHome
 
-# -
-cd ${BUILDDIR}/software
-echo "[Downloading, may take a while ] curl -LO ${IIB_URL}"
-curl -LO ${IIB_URL}
+downloadInstallIIBAcceptLicence
 
-echo "[This will take a moment] tar --exclude="tools" -xf ./${IIB_VERSION}.tar.gz --directory /opt/ibm"
-tar --exclude="tools" -xf ./${IIB_VERSION}.tar.gz --directory /opt/ibm
+configureCINITD
 
-/opt/ibm/${IIB_VERSION}/iib make registry global accept license silently
+cleanUPImageAfterBuild
 
-# -
-usermod -G mqbrkrs root
-
-# -
-mkdir -p /etc/cinit.d
-cp -v ${BUILDDIR}/bin/waiting_to_configure /etc/cinit.d
-cp -v ${BUILDDIR}/bin/iib-env /usr/local/bin
-cp -v ${BUILDDIR}/bin/cinitd /sbin/
-
-# -
-rm -rf /tmp/build
+log "I << $0 [End]"

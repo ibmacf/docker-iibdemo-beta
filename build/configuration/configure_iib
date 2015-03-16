@@ -1,0 +1,101 @@
+#!/bin/bash
+# -*- mode: sh -*-
+# © Copyright IBM Corporation 2015.
+#
+# All rights reserved. This program and the accompanying materials
+# are made available under the terms of the Eclipse Public License v1.0
+# which accompanies this distribution, and is available at
+# http://www.eclipse.org/legal/epl-v10.html
+
+#_SU="su - ${IIBADMIN}"
+_SU="su - ${IIBADMIN} -c "
+
+# - Include commonLib
+
+if [[ -f ${IIBCONFIGURELOC}/configuration/lib/commonLib ]]; then
+    source ${IIBCONFIGURELOC}/configuration/lib/commonLib
+else
+    echo "ERROR: Exiting, can't source [${IIBCONFIGURELOC}/lib/commonLib]"
+fi
+
+createAndStartBroker()
+{
+    log "I >> $0 [createAndStartBroker]"
+
+    eCmd run "${_SU} \"mqsicreatebroker $IIBNODE\""
+    eCmd run "${_SU} \"mqsistart $IIBNODE\""
+
+    log "I Give the broker some time to wake up and get its bits together..."
+    while [[ ! -f /var/mqsi/components/${IIBNODE}/config/${IIBNODE} ]]; do
+        eCmd run "sleep 2"
+    done
+    # - this is for the mqtt process to connect, mosquitto config file
+    eCmd run "echo user ${IIBADMIN} >> /var/mqsi/components/${IIBNODE}/config/${IIBNODE}"
+    log "I << $0 [createAndStartBroker]"
+}
+
+createIntegrationServersAndDeploy()
+{
+    log "I >> $0 [createIntegrationServersAndDeploy]"
+    log "I Creating Integration servers deploying the releveant bar files"
+    log "I Recieved the following configuration,"
+    eCmd run "echo [${IIBINTSERVERS}]"
+
+    for _ROW in `echo "${IIBINTSERVERS}"`
+    do
+        _SERVERNAME=$(echo "${_ROW}" | cut -f1 -d':')
+        _BARLIST=$(echo ${_ROW} | cut -f2 -d':'| tr -s ',' ' ')
+        if [[ ! "${_SERVERNAME}" = "" ]]; then
+            eCmd run "${_SU} \"mqsicreateexecutiongroup ${IIBNODE} -e ${_SERVERNAME}\""
+            log ""
+            for _BAR in ${_BARLIST}
+            do
+                if [[ ! "${_BAR}" = "" ]]; then
+                    eCmd run "${_SU} \"mqsideploy ${IIBNODE} -e ${_SERVERNAME} -a ${BARFILESROOT}/${_BAR}\""
+                    log ""
+                fi
+            done
+        fi
+    done
+    log "I << script $0 [createIntegrationServersAndDeploy]"    
+}
+
+installNodeService()
+{
+    # _NODE=$(echo ${IIBNODE}| tr -s [A-Z] [a-z])
+    eCmd run "cp ${IIBCONFIGURELOC}/configuration/${IIBNODE}/iibnode-${IIBNODE}.service /etc/cinit.d/iibnode-${IIBNODE}"
+}
+
+removeConfigureFromCinitd()
+{
+    log "I >> script $0 [removeConfigureFromCinitd]"        
+
+    # - Install the Broker service so the NODE stops and starts
+    installNodeService
+    eCmd run "rm -f /etc/cinit.d/configure_iib"
+    log ""
+    log "I SUCCESS : Configuration complete, container ready for e-Business."
+    log ""
+    log "I << script $0 [removeConfigureFromCinitd]"        
+}
+
+log "I >> script $0 [Begin]"        
+
+set -e
+if [[ -f ${IIBCONFIGURELOC}/configuration/${IIBNODE}/iibnode-${IIBNODE}.properties ]]; then
+    
+    source ${IIBCONFIGURELOC}/configuration/${IIBNODE}/iibnode-${IIBNODE}.properties
+ 
+    # - Create and start the broker
+    createAndStartBroker
+
+    # - Create Integration Servers and deploy associated bar files
+    createIntegrationServersAndDeploy
+
+    # - Now that the configuration task is complete remove the sentinel process
+    removeConfigureFromCinitd
+
+else
+    log "ERROR: Exiting, expected property file not found!"
+fi
+log "I << script $0 [End]"        
