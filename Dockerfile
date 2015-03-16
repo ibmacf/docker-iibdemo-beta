@@ -19,8 +19,8 @@ ENV IIBADMIN=iibadm \
 ENV IIBIMAGENAME=iib-${IIBVERSION}.tar.gz \
 	IIBCONFIGURELOC=/home/${IIBADMIN}
 
-ENV IIBMEDIAURL=http://192.168.187.1:8081/${IIBIMAGENAME}
-#ENV IIBMEDIAURL=http://ec2-52-64-28-224.ap-southeast-2.compute.amazonaws.com/${IIBIMAGENAME}
+#ENV IIBMEDIAURL=http://192.168.187.1:8081/${IIBIMAGENAME}
+ENV IIBMEDIAURL=http://ec2-52-64-38-157.ap-southeast-2.compute.amazonaws.com/${IIBIMAGENAME}
 
 # - build script folder
 COPY build/ ${IIBBUILDDIR}

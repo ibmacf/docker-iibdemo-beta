@@ -98,4 +98,4 @@ if [[ -f ${IIBCONFIGURELOC}/configuration/${IIBNODE}/iibnode-${IIBNODE}.properti
 else
     log "ERROR: Exiting, expected property file not found!"
 fi
-log "I << script $0 [End]"        
+log "I << script $0 [End]"
